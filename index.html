@@ -1120,6 +1120,10 @@ async function saveEdit(){
   closeEditModal();
   showToast('✅ 已保存');
   await loadEntries();
+  renderToday();
+  renderList();
+  renderStats();
+  renderSettings();
 }
 
 // ===== Toast =====
