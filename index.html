@@ -192,7 +192,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 </div>
 
 <!-- ===== Page: 记账 ===== -->
-<div class="page active" id="page-add">
+<div class="page" id="page-add">
   <div class="page-header">
     <div>
       <div class="page-title">DK · 邻里少儿中心</div>
@@ -255,7 +255,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 </div>
 
 <!-- ===== Page: 明细 ===== -->
-<div class="page" id="page-list">
+<div class="page active" id="page-list">
   <div class="page-header">
     <div>
       <div class="page-title">支出明细</div>
@@ -384,10 +384,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 
 <!-- ===== Bottom Nav ===== -->
 <div class="bottom-nav">
-  <div class="nav-item active" onclick="switchPage('add')">
+  <div class="nav-item" onclick="switchPage('add')">
     <span class="icon">✏️</span><span class="label">记账</span>
   </div>
-  <div class="nav-item" onclick="switchPage('list')">
+  <div class="nav-item active" onclick="switchPage('list')">
     <span class="icon">📋</span><span class="label">明细</span>
   </div>
   <div class="nav-item" onclick="switchPage('stats')">
