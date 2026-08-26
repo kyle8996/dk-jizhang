@@ -1112,7 +1112,7 @@ async function saveEdit(){
   };
 
   setSyncStatus('syncing','保存修改...');
-  const { error } = await supabase.from('dk_expenses').update(updates).eq('id', editingId);
+  const { error } = await db.from('dk_expenses').update(updates).eq('id', editingId);
   if(error){ showToast('❌ 修改失败'); setSyncStatus('error','修改失败'); return; }
 
   closeEditModal();
