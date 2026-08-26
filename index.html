@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="DK·邻里少儿中心">
+<title>DK·邻里少儿中心 — 每月采购清单</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f5f5f7;--card:#fff;--primary:#4A90D9;--primary-d:#3A7BC8;
+  --text:#1a1a1a;--text2:#666;--text3:#999;--border:#e8e8e8;
+  --green:#34A853;--red:#EA4335;--orange:#FB8C00;--purple:#7B61FF;
+  --pink:#E91E63;--teal:#00BFA5;--gray:#9E9E9E;
+  --shadow:0 2px 8px rgba(0,0,0,.06);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);max-width:500px;margin:0 auto;min-height:100vh;padding-bottom:80px;font-size:15px}
+/* ===== Sync Status ===== */
+.sync-status{position:fixed;top:8px;right:8px;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.95);padding:4px 10px;border-radius:12px;font-size:11px;color:var(--text3);box-shadow:0 1px 4px rgba(0,0,0,.08);z-index:150;border:1px solid var(--border)}
+.sync-status .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite}
+.sync-status .refresh-btn{border:none;background:none;font-size:15px;cursor:pointer;padding:0 0 0 4px;line-height:1;color:var(--primary);-webkit-appearance:none}
+.sync-status .refresh-btn:active{transform:rotate(180deg);transition:transform .4s}
+.sync-status.syncing .sync-dot{background:var(--orange)}
+.sync-status.error .sync-dot{background:var(--red);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* ===== Bottom Nav ===== */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;background:#fff;border-top:1px solid var(--border);display:flex;height:64px;z-index:100}
+.bottom-nav .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--text3);cursor:pointer;transition:color .2s}
+.bottom-nav .nav-item.active{color:var(--primary)}
+.bottom-nav .nav-item .icon{font-size:22px}
+.bottom-nav .nav-item .label{font-size:10px;font-weight:500}
+/* ===== Pages ===== */
+.page{display:none;padding:16px}
+.page.active{display:block}
+/* ===== Header ===== */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;margin-top:24px}
+.page-title{font-size:22px;font-weight:700}
+.page-subtitle{font-size:13px;color:var(--text3);margin-top:2px}
+/* ===== Person Toggle ===== */
+.person-toggle{display:flex;background:#e8e8e8;border-radius:10px;padding:3px;gap:3px}
+.person-toggle button{border:none;background:none;padding:6px 10px;border-radius:8px;font-size:13px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .2s;white-space:nowrap}
+.person-toggle button.active{background:var(--primary);color:#fff;box-shadow:0 1px 4px rgba(74,144,217,.3)}
+/* ===== Quick Add Card ===== */
+.quick-add-card{background:var(--card);border-radius:16px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+.qa-label{font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.qa-amount-row{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.qa-amount-row .currency{font-size:24px;font-weight:700;color:var(--text)}
+.qa-amount-row input{border:none;outline:none;font-size:32px;font-weight:700;color:var(--text);width:100%;background:none;-webkit-appearance:none}
+.qa-amount-row input::placeholder{color:var(--border)}
+/* ===== Category Grid ===== */
+.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.cat-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:12px;cursor:pointer;transition:all .2s;background:#f5f5f7}
+.cat-item.selected{background:var(--primary);color:#fff;transform:scale(1.05)}
+.cat-item.selected .cat-label{color:#fff}
+.cat-item .cat-icon{font-size:24px}
+.cat-item .cat-label{font-size:11px;color:var(--text2);font-weight:500;text-align:center;line-height:1.2}
+/* ===== Input Row ===== */
+.input-row{display:flex;align-items:center;background:#f5f5f7;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.input-row .input-icon{font-size:18px;margin-right:10px;width:20px;text-align:center}
+.input-row input,.input-row select,.input-row textarea{border:none;outline:none;background:none;font-size:15px;width:100%;color:var(--text);-webkit-appearance:none;font-family:inherit}
+.input-row textarea{resize:none;line-height:1.4}
+/* ===== Save Button ===== */
+.btn-save{width:100%;background:var(--primary);color:#fff;border:none;padding:14px;border-radius:12px;font-size:17px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-save:active{background:var(--primary-d);transform:scale(.98)}
+.btn-save:disabled{background:var(--text3)}
+/* ===== Today List ===== */
+.today-summary{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#4A90D9,#3A7BC8);color:#fff;border-radius:16px;padding:16px 20px;margin-bottom:16px}
+.today-summary .ts-left{display:flex;flex-direction:column}
+.today-summary .ts-label{font-size:12px;opacity:.8}
+.today-summary .ts-amount{font-size:28px;font-weight:700;margin-top:2px}
+.today-summary .ts-count{font-size:12px;opacity:.8;margin-top:2px}
+.today-summary .ts-icon{font-size:32px;opacity:.3}
+.entry-list{display:flex;flex-direction:column;gap:8px}
+.entry-card{display:flex;align-items:center;background:var(--card);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+.entry-card .ec-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-right:12px;flex-shrink:0}
+.entry-card .ec-body{flex:1;min-width:0}
+.entry-card .ec-title{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-card .ec-meta{font-size:12px;color:var(--text3);margin-top:2px;display:flex;gap:8px}
+.entry-card .ec-meta .ec-person{background:#f0f0f0;padding:1px 6px;border-radius:4px;font-size:11px}
+.entry-card .ec-amount{font-size:17px;font-weight:700;margin-left:8px}
+.entry-card .ec-actions{display:flex;align-items:center;gap:2px;margin-left:6px}
+.entry-card .ec-edit,.entry-card .ec-del{color:var(--text3);font-size:18px;cursor:pointer;padding:6px;border-radius:6px;transition:all .2s}
+.entry-card .ec-edit:hover,.entry-card .ec-edit:active{background:var(--primary);color:#fff}
+.entry-card .ec-del:active{background:var(--red);color:#fff}
+/* ===== Edit Modal ===== */
+.edit-modal{background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%;max-height:90vh;overflow-y:auto}
+.edit-modal h3{font-size:18px;margin-bottom:14px;text-align:center}
+.edit-modal .em-amount{display:flex;align-items:center;gap:8px;background:#f5f5f7;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.edit-modal .em-amount .currency{font-size:22px;font-weight:700}
+.edit-modal .em-amount input{border:none;outline:none;font-size:26px;font-weight:700;width:100%;background:none;-webkit-appearance:none}
+.edit-modal .em-cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.edit-modal .em-cat-grid .em-cat{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:10px;cursor:pointer;background:#f5f5f7;font-size:11px;line-height:1.2}
+.edit-modal .em-cat-grid .em-cat.selected{background:var(--primary);color:#fff;transform:scale(1.04)}
+.edit-modal .em-cat-grid .em-cat .em-cat-icon{font-size:20px}
+.edit-modal .em-row{display:flex;align-items:center;background:#f5f5f7;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.edit-modal .em-row .em-icon{margin-right:8px;font-size:16px}
+.edit-modal .em-row input,.edit-modal .em-row select{border:none;outline:none;background:none;width:100%;font-size:14px;font-family:inherit;-webkit-appearance:none}
+.edit-modal .em-btns{display:flex;gap:10px;margin-top:14px}
+.edit-modal .em-btns button{flex:1;padding:12px;border-radius:10px;font-size:15px;font-weight:600;border:none;cursor:pointer}
+.edit-modal .em-btns .btn-cancel{background:#f0f0f0;color:var(--text2)}
+.edit-modal .em-btns .btn-save-edit{background:var(--primary);color:#fff}
+/* ===== Month Summary ===== */
+.month-card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+.month-card .mc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.month-card .mc-month{font-size:18px;font-weight:700}
+.month-card .mc-total{font-size:20px;font-weight:700;color:var(--primary)}
+.month-card .mc-bar{display:flex;gap:2px;margin-bottom:10px;height:6px;border-radius:3px;overflow:hidden;background:#f0f0f0}
+.month-card .mc-bar .mc-bar-seg{height:100%;transition:width .3s}
+.month-card .mc-cats{display:flex;flex-direction:column;gap:6px}
+.month-card .mc-cat-row{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.month-card .mc-cat-row .mc-cat-name{display:flex;align-items:center;gap:6px}
+.month-card .mc-cat-row .mc-cat-dot{width:8px;height:8px;border-radius:50%}
+.month-card .mc-cat-row .mc-cat-amount{font-weight:600;color:var(--text2)}
+.month-card .mc-cat-row .mc-cat-no-cost{color:var(--text3);font-size:11px}
+/* ===== Stats ===== */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.stat-card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);text-align:center}
+.stat-card .sc-label{font-size:12px;color:var(--text3);font-weight:600}
+.stat-card .sc-value{font-size:28px;font-weight:700;margin-top:4px}
+.stat-card .sc-sub{font-size:11px;color:var(--text3);margin-top:2px}
+/* ===== Quarter Card ===== */
+.quarter-card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+.quarter-card .qc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.quarter-card .qc-title{font-size:16px;font-weight:700}
+.quarter-card .qc-total{font-size:18px;font-weight:700}
+.quarter-card .qc-items{display:flex;flex-direction:column;gap:4px}
+.quarter-card .qc-item{display:flex;justify-content:space-between;font-size:13px;color:var(--text2);padding:4px 0;border-bottom:1px solid #f5f5f5}
+.quarter-card .qc-item:last-child{border:none}
+/* ===== Export Bar ===== */
+.export-bar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:468px;display:flex;gap:8px;z-index:50}
+.export-bar button{flex:1;background:rgba(74,144,217,.1);color:var(--primary);border:1px solid var(--primary);padding:8px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;backdrop-filter:blur(8px)}
+.export-bar button:active{background:rgba(74,144,217,.2)}
+/* ===== Toast ===== */
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+/* ===== Empty State ===== */
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty .empty-icon{font-size:48px;margin-bottom:12px}
+.empty .empty-text{font-size:14px}
+/* ===== Category Colors ===== */
+.cat-bg-0{background:#E3F2FD}.cat-text-0{color:#1976D2}
+.cat-bg-1{background:#E8F5E9}.cat-text-1{color:#388E3C}
+.cat-bg-2{background:#FFF3E0}.cat-text-2{color:#F57C00}
+.cat-bg-3{background:#F3E5F5}.cat-text-3{color:#7B1FA2}
+.cat-bg-4{background:#FFEBEE}.cat-text-4{color:#D32F2F}
+.cat-bg-5{background:#E0F7FA}.cat-text-5{color:#00838F}
+.cat-bg-6{background:#ECEFF1}.cat-text-6{color:#546E7A}
+/* ===== Modal ===== */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:24px;max-width:400px;width:100%;text-align:center}
+.modal h3{font-size:18px;margin-bottom:12px}
+.modal p{font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+.modal .modal-btns{display:flex;gap:12px}
+.modal .modal-btns button{flex:1;padding:12px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;border:none}
+.modal .modal-btns .btn-cancel{background:#f0f0f0;color:var(--text2)}
+.modal .modal-btns .btn-confirm{background:var(--red);color:#fff}
+/* ===== Date selector ===== */
+.date-selector{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.date-selector button{background:#f0f0f0;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;color:var(--text2)}
+.date-selector .ds-date{font-size:16px;font-weight:600}
+/* ===== Settings ===== */
+.settings-card{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+.settings-card h3{font-size:16px;font-weight:700;margin-bottom:12px}
+.settings-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f5f5f5;font-size:14px}
+.settings-row:last-child{border:none}
+.settings-row .sr-label{color:var(--text2)}
+.settings-row .sr-value{font-weight:600}
+.settings-row .sr-btn{background:var(--primary);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer}
+.settings-row .sr-btn.danger{background:var(--red)}
+.toggle-switch{width:44px;height:26px;background:#e0e0e0;border-radius:13px;position:relative;cursor:pointer;transition:background .2s}
+.toggle-switch.on{background:var(--green)}
+.toggle-switch .ts-knob{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-switch.on .ts-knob{left:21px}
+/* ===== Tips ===== */
+.tips-card{background:linear-gradient(135deg,#FFF8E1,#FFF3E0);border-radius:12px;padding:14px;margin-bottom:12px;font-size:13px;color:#E65100;line-height:1.6}
+.tips-card .tips-title{font-weight:700;margin-bottom:4px}
+/* ===== People Filter ===== */
+.people-filter{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.people-filter button{padding:5px 12px;border-radius:14px;border:1px solid var(--border);background:#fff;font-size:12px;color:var(--text2);cursor:pointer;font-weight:600}
+.people-filter button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+</style>
+</head>
+<body>
+
+<div class="sync-status" id="syncStatus">
+  <span class="sync-dot"></span>
+  <span id="syncText">已同步</span>
+  <button class="refresh-btn" onclick="manualRefresh()" title="刷新数据">🔄</button>
+</div>
+
+<!-- ===== Page: 记账 ===== -->
+<div class="page active" id="page-add">
+  <div class="page-header">
+    <div>
+      <div class="page-title">DK · 邻里少儿中心</div>
+      <div class="page-subtitle">每月采购清单</div>
+    </div>
+    <div class="person-toggle">
+      <button class="active" data-person="Kyle" onclick="selectPerson('Kyle')">Kyle</button>
+      <button data-person="Dora" onclick="selectPerson('Dora')">Dora</button>
+      <button data-person="Cindy" onclick="selectPerson('Cindy')">Cindy</button>
+    </div>
+  </div>
+
+  <div class="quick-add-card">
+    <div class="qa-label">金额</div>
+    <div class="qa-amount-row">
+      <span class="currency">¥</span>
+      <input type="number" id="inputAmount" placeholder="0" inputmode="decimal" step="0.01" oninput="onAmountInput()">
+    </div>
+
+    <div class="qa-label">分类</div>
+    <div class="cat-grid" id="catGrid"></div>
+
+    <div class="input-row">
+      <span class="input-icon">📝</span>
+      <input type="text" id="inputNote" placeholder="买什么（选填，如：京东-彩色铅笔×2" maxlength="50">
+    </div>
+
+    <div class="input-row">
+      <span class="input-icon">📅</span>
+      <input type="date" id="inputDate">
+    </div>
+
+    <div class="input-row">
+      <span class="input-icon">🛒</span>
+      <select id="inputPay">
+        <option value="淘宝">淘宝</option>
+        <option value="京东">京东</option>
+        <option value="拼多多">拼多多</option>
+        <option value="1688">1688</option>
+        <option value="微信">微信</option>
+        <option value="其他平台">其他平台</option>
+      </select>
+    </div>
+
+    <button class="btn-save" id="btnSave" onclick="saveEntry()" disabled>保存</button>
+  </div>
+
+  <!-- 今日已记 -->
+  <div class="today-summary" onclick="switchPage('list')">
+    <div class="ts-left">
+      <span class="ts-label">今日支出</span>
+      <span class="ts-amount" id="todayTotal">¥0</span>
+      <span class="ts-count" id="todayCount">0 笔</span>
+    </div>
+    <span class="ts-icon">📊</span>
+  </div>
+
+  <div class="entry-list" id="todayList"></div>
+</div>
+
+<!-- ===== Page: 明细 ===== -->
+<div class="page" id="page-list">
+  <div class="page-header">
+    <div>
+      <div class="page-title">支出明细</div>
+      <div class="page-subtitle">按日期排列</div>
+    </div>
+  </div>
+
+  <div class="people-filter" id="listPeopleFilter">
+    <button class="active" data-person="all" onclick="filterListPerson('all')">全部</button>
+    <button data-person="Kyle" onclick="filterListPerson('Kyle')">Kyle</button>
+    <button data-person="Dora" onclick="filterListPerson('Dora')">Dora</button>
+    <button data-person="Cindy" onclick="filterListPerson('Cindy')">Cindy</button>
+  </div>
+
+  <div class="date-selector">
+    <button onclick="changeMonth(-1)">‹</button>
+    <span class="ds-date" id="listMonthLabel"></span>
+    <button onclick="changeMonth(1)">›</button>
+  </div>
+
+  <div id="monthEntryList"></div>
+  <div class="export-bar">
+    <button onclick="exportData('csv')">📤 导出CSV</button>
+    <button onclick="exportData('json')">📤 导出JSON</button>
+  </div>
+</div>
+
+<!-- ===== Page: 统计 ===== -->
+<div class="page" id="page-stats">
+  <div class="page-header">
+    <div>
+      <div class="page-title">统计</div>
+      <div class="page-subtitle" id="statsSubtitle"></div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="sc-label">本月支出</div>
+      <div class="sc-value" id="statMonth" style="color:var(--primary)">¥0</div>
+      <div class="sc-sub" id="statMonthCount">0 笔</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">本季度成本</div>
+      <div class="sc-value" id="statQuarter" style="color:var(--green)">¥0</div>
+      <div class="sc-sub" id="statQuarterCount">0 笔</div>
+    </div>
+  </div>
+
+  <div id="monthCards"></div>
+
+  <div class="quarter-card" id="quarterCard">
+    <div class="qc-header">
+      <span class="qc-title" id="qcTitle">本季度明细</span>
+      <span class="qc-total" id="qcTotal" style="color:var(--green)">¥0</span>
+    </div>
+    <div class="qc-items" id="qcItems"></div>
+  </div>
+</div>
+
+<!-- ===== Page: 设置 ===== -->
+<div class="page" id="page-settings">
+  <div class="page-header">
+    <div>
+      <div class="page-title">设置</div>
+    </div>
+  </div>
+
+  <div class="tips-card">
+    <div class="tips-title">💡 使用提示</div>
+    把这个页面<span style="font-weight:700">添加到手机桌面</span>，下次直接点开就能记账。<br>
+    iPhone：Safari打开 → 底部分享 → 添加到主屏幕<br>
+    安卓：浏览器菜单 → 添加到桌面<br>
+    <span style="color:var(--text3);font-size:12px">三个人用同一网址，右上角切换 Kyle / Dora / Cindy 即可，数据云端实时同步。</span>
+  </div>
+
+  <div class="settings-card">
+    <h3>📊 数据管理</h3>
+    <div class="settings-row">
+      <span class="sr-label">总记录数</span>
+      <span class="sr-value" id="setTotalCount">0 笔</span>
+    </div>
+    <div class="settings-row">
+      <span class="sr-label">总支出</span>
+      <span class="sr-value" id="setTotalAmount">¥0</span>
+    </div>
+    <div class="settings-row">
+      <span class="sr-label">本月记录</span>
+      <span class="sr-value" id="setMonthCount">0 笔</span>
+    </div>
+    <div class="settings-row">
+      <span class="sr-label">本月支出</span>
+      <span class="sr-value" id="setMonthAmount">¥0</span>
+    </div>
+    <div class="settings-row">
+      <span class="sr-label">导出本月数据</span>
+      <button class="sr-btn" onclick="exportData('csv')">CSV</button>
+    </div>
+    <div class="settings-row">
+      <span class="sr-label">导出全部数据</span>
+      <button class="sr-btn" onclick="exportAllData()">JSON</button>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3>🏷️ 分类说明</h3>
+    <div id="catLegend"></div>
+  </div>
+
+  <div class="settings-card">
+    <h3>📌 报税提醒</h3>
+    <div class="settings-row">
+      <span class="sr-label">Q2 申报截止</span>
+      <span class="sr-value" style="color:var(--red)">7月15日</span>
+    </div>
+    <div class="settings-row">
+      <span class="sr-label">Q3 申报截止</span>
+      <span class="sr-value">10月15日</span>
+    </div>
+    <div class="settings-row">
+      <span class="sr-label">年度汇算(B表)</span>
+      <span class="sr-value">2027年3月31日</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Bottom Nav ===== -->
+<div class="bottom-nav">
+  <div class="nav-item active" onclick="switchPage('add')">
+    <span class="icon">✏️</span><span class="label">记账</span>
+  </div>
+  <div class="nav-item" onclick="switchPage('list')">
+    <span class="icon">📋</span><span class="label">明细</span>
+  </div>
+  <div class="nav-item" onclick="switchPage('stats')">
+    <span class="icon">📊</span><span class="label">统计</span>
+  </div>
+  <div class="nav-item" onclick="switchPage('settings')">
+    <span class="icon">⚙️</span><span class="label">设置</span>
+  </div>
+</div>
+
+<!-- ===== Modal ===== -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">确认</h3>
+    <p id="modalText"></p>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" id="modalConfirmBtn">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Edit Modal ===== -->
+<div class="modal-overlay" id="editModal">
+  <div class="edit-modal">
+    <h3>✏️ 修改记录</h3>
+    <div class="em-amount">
+      <span class="currency">¥</span>
+      <input type="number" id="editAmount" inputmode="decimal" step="0.01" placeholder="0">
+    </div>
+    <div style="font-size:12px;color:var(--text3);font-weight:600;margin-bottom:6px">分类</div>
+    <div class="em-cat-grid" id="editCatGrid"></div>
+    <div class="em-row">
+      <span class="em-icon">📝</span>
+      <input type="text" id="editNote" placeholder="备注" maxlength="50">
+    </div>
+    <div class="em-row">
+      <span class="em-icon">📅</span>
+      <input type="date" id="editDate">
+    </div>
+    <div class="em-row">
+      <span class="em-icon">🛒</span>
+      <select id="editPay">
+        <option value="淘宝">淘宝</option>
+        <option value="京东">京东</option>
+        <option value="拼多多">拼多多</option>
+        <option value="1688">1688</option>
+        <option value="微信">微信</option>
+        <option value="其他平台">其他平台</option>
+      </select>
+    </div>
+    <div class="em-row">
+      <span class="em-icon">👤</span>
+      <select id="editPerson">
+        <option value="Kyle">Kyle</option>
+        <option value="Dora">Dora</option>
+        <option value="Cindy">Cindy</option>
+      </select>
+    </div>
+    <div class="em-btns">
+      <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+      <button class="btn-save-edit" onclick="saveEdit()">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Toast ===== -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ===== Supabase Config =====
+const SUPABASE_URL = 'https://chasxggorljjqqmficnh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoYXN4Z2dvcmxqanFxbWZpY25oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDI1NzIsImV4cCI6MjA5NzA3ODU3Mn0.E0xlNCX_jFn8X9LheAR3jFHokzWSkZlXkBDReqTvL6c';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ===== Categories =====
+const CATEGORIES = [
+  {id:0,name:'日常教学用品',icon:'📚',color:'#1976D2',cost:true,desc:'教具/教材/文具/打印'},
+  {id:1,name:'办公用品',icon:'🗂️',color:'#7B1FA2',cost:true,desc:'打印纸/笔/文件夹/日常办公'},
+  {id:2,name:'设备维修',icon:'🔧',color:'#00838F',cost:true,desc:'维修/更换/保养'},
+  {id:3,name:'环创支出',icon:'🎨',color:'#E91E63',cost:true,desc:'教室布置/装饰/环境美化'},
+  {id:4,name:'新招营销及推广支出',icon:'📢',color:'#F57C00',cost:true,desc:'新生招募/广告/招牌/开业红包'},
+  {id:5,name:'升学营销支出',icon:'🎓',color:'#7B61FF',cost:true,desc:'续班/升学/老带新推广'},
+  {id:6,name:'不计成本',icon:'🚫',color:'#546E7A',cost:false,desc:'个人消费/餐饮/私人物品'},
+];
+
+// ===== State =====
+let state = {
+  entries: [],
+  selectedPerson: 'Kyle',
+  selectedCat: null,
+  viewMonth: new Date(),
+  listFilterPerson: 'all',
+};
+
+// ===== Sync Status =====
+function setSyncStatus(status, text){
+  const el = document.getElementById('syncStatus');
+  el.classList.remove('syncing','error');
+  if(status==='syncing') el.classList.add('syncing');
+  if(status==='error') el.classList.add('error');
+  document.getElementById('syncText').textContent = text;
+}
+
+async function manualRefresh(){
+  setSyncStatus('syncing','刷新中...');
+  await loadEntries();
+  renderToday();
+  renderList();
+  renderStats();
+  renderSettings();
+  setSyncStatus('ok','已刷新 ✓');
+  showToast('🔄 数据已刷新');
+  setTimeout(()=>setSyncStatus('ok','已同步'), 2000);
+}
+
+// ===== Init =====
+async function init(){
+  renderCatGrid();
+  renderCatLegend();
+  setInputDate();
+  await loadEntries();
+  renderToday();
+  renderList();
+  renderStats();
+  renderSettings();
+  subscribeChanges();
+}
+
+async function loadEntries(){
+  setSyncStatus('syncing','同步中...');
+  try{
+    const { data, error } = await db
+      .from('dk_expenses')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(2000);
+    if(error) throw error;
+    state.entries = data || [];
+    setSyncStatus('ok','已同步 ✓');
+  }catch(e){
+    console.error('Load error:', e);
+    setSyncStatus('error','同步失败');
+    showToast('网络异常，显示本地缓存');
+    try{
+      const cached = localStorage.getItem('dk_expenses_cache');
+      if(cached) state.entries = JSON.parse(cached);
+    }catch(e2){}
+  }
+}
+
+function saveCache(){
+  try{
+    localStorage.setItem('dk_expenses_cache', JSON.stringify(state.entries));
+  }catch(e){}
+}
+
+let realtimeChannel = null;
+function subscribeChanges(){
+  if(realtimeChannel) return;
+  realtimeChannel = db.channel('dk_expenses_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'dk_expenses' }, (payload) => {
+      console.log('Realtime change:', payload);
+      loadEntries().then(()=>{
+        renderToday();
+        renderList();
+        renderStats();
+        renderSettings();
+      });
+    })
+    .subscribe();
+}
+
+// ===== Page Switch =====
+function switchPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector(`.nav-item[onclick="switchPage('${name}')"]`).classList.add('active');
+  if(name==='list') renderList();
+  if(name==='stats') renderStats();
+  if(name==='settings') renderSettings();
+  window.scrollTo(0,0);
+}
+
+// ===== Person =====
+function selectPerson(p){
+  state.selectedPerson = p;
+  document.querySelectorAll('.person-toggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.person===p);
+  });
+}
+
+function filterListPerson(p){
+  state.listFilterPerson = p;
+  document.querySelectorAll('#listPeopleFilter button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.person===p);
+  });
+  renderList();
+}
+
+// ===== Categories =====
+function renderCatGrid(){
+  const grid = document.getElementById('catGrid');
+  grid.innerHTML = CATEGORIES.map(c=>`
+    <div class="cat-item" data-cat="${c.id}" onclick="selectCat(${c.id})">
+      <span class="cat-icon">${c.icon}</span>
+      <span class="cat-label">${c.name}</span>
+    </div>
+  `).join('');
+}
+
+function selectCat(id){
+  state.selectedCat = id;
+  document.querySelectorAll('.cat-item').forEach(item=>{
+    item.classList.toggle('selected', parseInt(item.dataset.cat)===id);
+  });
+  checkSaveReady();
+}
+
+function renderCatLegend(){
+  const el = document.getElementById('catLegend');
+  el.innerHTML = CATEGORIES.map(c=>`
+    <div class="settings-row">
+      <span class="sr-label">${c.icon} ${c.name}</span>
+      <span class="sr-value" style="font-size:12px;color:${c.cost?'var(--green)':'var(--text3)'}">${c.desc} ${c.cost?'':'(不报税)'}</span>
+    </div>
+  `).join('');
+}
+
+// ===== Date =====
+function setInputDate(){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const d = String(now.getDate()).padStart(2,'0');
+  document.getElementById('inputDate').value = `${y}-${m}-${d}`;
+}
+
+function formatDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDateShort(d){
+  const m = d.getMonth()+1;
+  const day = d.getDate();
+  return `${m}月${day}日`;
+}
+
+// ===== Save Entry =====
+function onAmountInput(){
+  checkSaveReady();
+}
+
+function checkSaveReady(){
+  const amount = parseFloat(document.getElementById('inputAmount').value);
+  const ready = amount > 0 && state.selectedCat !== null;
+  document.getElementById('btnSave').disabled = !ready;
+}
+
+async function saveEntry(){
+  const amount = parseFloat(document.getElementById('inputAmount').value);
+  if(!amount || amount <= 0 || state.selectedCat === null) return;
+
+  const cat = CATEGORIES[state.selectedCat];
+  const entry = {
+    date: document.getElementById('inputDate').value,
+    amount: Math.round(amount * 100) / 100,
+    cat_id: state.selectedCat,
+    cat_name: cat.name,
+    cat_icon: cat.icon,
+    cost: cat.cost,
+    note: document.getElementById('inputNote').value.trim() || '',
+    person: state.selectedPerson,
+    pay: document.getElementById('inputPay').value,
+  };
+
+  setSyncStatus('syncing','保存中...');
+  const btn = document.getElementById('btnSave');
+  btn.disabled = true;
+
+  try{
+    const { data, error } = await db
+      .from('dk_expenses')
+      .insert([entry])
+      .select();
+    if(error) throw error;
+
+    if(data && data[0]){
+      state.entries.unshift(data[0]);
+      saveCache();
+    }
+
+    document.getElementById('inputAmount').value = '';
+    document.getElementById('inputNote').value = '';
+    state.selectedCat = null;
+    document.querySelectorAll('.cat-item').forEach(i=>i.classList.remove('selected'));
+    setInputDate();
+    setSyncStatus('ok','已同步 ✓');
+    showToast('✅ 已保存 ¥' + entry.amount);
+    renderToday();
+    renderList();
+    renderStats();
+  }catch(e){
+    console.error('Save error:', e);
+    setSyncStatus('error','保存失败');
+    showToast('保存失败：' + e.message);
+  }finally{
+    checkSaveReady();
+  }
+}
+
+async function deleteEntry(id){
+  setSyncStatus('syncing','删除中...');
+  try{
+    const { error } = await db
+      .from('dk_expenses')
+      .delete()
+      .eq('id', id);
+    if(error) throw error;
+    state.entries = state.entries.filter(e=>e.id !== id);
+    saveCache();
+    setSyncStatus('ok','已同步 ✓');
+    showToast('已删除');
+    renderToday();
+    renderList();
+    renderStats();
+  }catch(e){
+    console.error('Delete error:', e);
+    setSyncStatus('error','删除失败');
+    showToast('删除失败：' + e.message);
+  }
+}
+
+// ===== Today =====
+function renderToday(){
+  const today = formatDate(new Date());
+  const todayEntries = state.entries
+    .filter(e=>e.date === today)
+    .sort((a,b)=>new Date(b.created_at) - new Date(a.created_at));
+
+  const total = todayEntries.reduce((s,e)=>s+parseFloat(e.amount), 0);
+  document.getElementById('todayTotal').textContent = '¥' + total.toFixed(2);
+  document.getElementById('todayCount').textContent = todayEntries.length + ' 笔';
+
+  const listEl = document.getElementById('todayList');
+  if(todayEntries.length === 0){
+    listEl.innerHTML = '<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">今天还没记账，买什么了？</div></div>';
+    return;
+  }
+
+  listEl.innerHTML = todayEntries.map(e=>{
+    const catBg = `cat-bg-${e.cat_id}`;
+    const catText = `cat-text-${e.cat_id}`;
+    return `
+    <div class="entry-card">
+      <div class="ec-icon ${catBg}">${e.cat_icon}</div>
+      <div class="ec-body">
+        <div class="ec-title">${e.note || e.cat_name}</div>
+        <div class="ec-meta">
+          <span class="ec-person">${e.person}</span>
+          <span>${e.pay}</span>
+          ${e.cost ? '' : '<span style="color:var(--text3)">不计成本</span>'}
+        </div>
+      </div>
+      <span class="ec-amount ${catText}">¥${parseFloat(e.amount).toFixed(2)}</span>
+      <span class="ec-actions">
+        <span class="ec-edit" onclick="openEditModal(${e.id})" title="修改">✏️</span>
+        <span class="ec-del" onclick="confirmDelete(${e.id})" title="删除">✕</span>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+// ===== List =====
+function changeMonth(delta){
+  state.viewMonth.setMonth(state.viewMonth.getMonth() + delta);
+  renderList();
+}
+
+function renderList(){
+  const y = state.viewMonth.getFullYear();
+  const m = state.viewMonth.getMonth();
+  document.getElementById('listMonthLabel').textContent = `${y}年${m+1}月`;
+
+  let monthEntries = state.entries
+    .filter(e=>{
+      const d = new Date(e.date);
+      return d.getFullYear()===y && d.getMonth()===m;
+    })
+    .sort((a,b)=>b.date.localeCompare(a.date) || new Date(b.created_at) - new Date(a.created_at));
+
+  if(state.listFilterPerson !== 'all'){
+    monthEntries = monthEntries.filter(e=>e.person === state.listFilterPerson);
+  }
+
+  const listEl = document.getElementById('monthEntryList');
+  if(monthEntries.length === 0){
+    listEl.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">本月暂无记录</div></div>';
+    return;
+  }
+
+  const grouped = {};
+  monthEntries.forEach(e=>{
+    if(!grouped[e.date]) grouped[e.date] = [];
+    grouped[e.date].push(e);
+  });
+
+  let html = '';
+  Object.keys(grouped).sort().reverse().forEach(date=>{
+    const entries = grouped[date];
+    const dayTotal = entries.reduce((s,e)=>s+parseFloat(e.amount), 0);
+    const d = new Date(date);
+    html += `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding:0 4px">
+        <span style="font-size:13px;font-weight:600;color:var(--text2)">${formatDateShort(d)}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text3)">¥${dayTotal.toFixed(2)}</span>
+      </div>`;
+
+    entries.forEach(e=>{
+      const catBg = `cat-bg-${e.cat_id}`;
+      const catText = `cat-text-${e.cat_id}`;
+      html += `
+        <div class="entry-card" style="margin-bottom:6px">
+          <div class="ec-icon ${catBg}">${e.cat_icon}</div>
+          <div class="ec-body">
+            <div class="ec-title">${e.note || e.cat_name}</div>
+            <div class="ec-meta">
+              <span class="ec-person">${e.person}</span>
+              <span>${e.pay}</span>
+              ${e.cost ? '' : '<span style="color:var(--text3)">不计成本</span>'}
+            </div>
+          </div>
+          <span class="ec-amount ${catText}">¥${parseFloat(e.amount).toFixed(2)}</span>
+          <span class="ec-actions">
+            <span class="ec-edit" onclick="openEditModal(${e.id})" title="修改">✏️</span>
+            <span class="ec-del" onclick="confirmDelete(${e.id})" title="删除">✕</span>
+          </span>
+        </div>`;
+    });
+    html += '</div>';
+  });
+
+  listEl.innerHTML = html;
+}
+
+// ===== Stats =====
+function renderStats(){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+
+  const statsStart = new Date(2026, 6, 1);
+  const filteredEntries = state.entries.filter(e=>{
+    const d = new Date(e.date);
+    return d >= statsStart;
+  });
+
+  const q = Math.floor(m / 3);
+  const qStart = new Date(y, q*3, 1);
+  const qEnd = new Date(y, q*3+3, 0, 23, 59, 59);
+
+  document.getElementById('statsSubtitle').textContent = `自2026年7月起`;
+
+  const monthEntries = filteredEntries.filter(e=>{
+    const d = new Date(e.date);
+    return d.getFullYear()===y && d.getMonth()===m && e.cost;
+  });
+  const monthTotal = monthEntries.reduce((s,e)=>s+parseFloat(e.amount), 0);
+  document.getElementById('statMonth').textContent = '¥' + monthTotal.toFixed(2);
+  document.getElementById('statMonthCount').textContent = monthEntries.length + ' 笔';
+
+  const quarterEntries = filteredEntries.filter(e=>{
+    const d = new Date(e.date);
+    return d >= qStart && d <= qEnd && e.cost;
+  });
+  const quarterTotal = quarterEntries.reduce((s,e)=>s+parseFloat(e.amount), 0);
+  document.getElementById('statQuarter').textContent = '¥' + quarterTotal.toFixed(2);
+  document.getElementById('statQuarterCount').textContent = quarterEntries.length + ' 笔';
+
+  const monthCardsEl = document.getElementById('monthCards');
+  let mcHtml = '';
+  for(let i = 2; i >= 0; i--){
+    const targetDate = new Date(y, m - i, 1);
+    const ty = targetDate.getFullYear();
+    const tm = targetDate.getMonth();
+    const targetKey = ty * 100 + tm;
+    const statsStartKey = 2026 * 100 + 6;
+    if(targetKey < statsStartKey) continue;
+    const entries = filteredEntries.filter(e=>{
+      const d = new Date(e.date);
+      return d.getFullYear()===ty && d.getMonth()===tm && e.cost;
+    });
+    const total = entries.reduce((s,e)=>s+parseFloat(e.amount), 0);
+
+    const catTotals = {};
+    entries.forEach(e=>{
+      catTotals[e.cat_id] = (catTotals[e.cat_id] || 0) + parseFloat(e.amount);
+    });
+
+    let barHtml = '';
+    if(total > 0){
+      CATEGORIES.forEach((c)=>{
+        if(catTotals[c.id]){
+          const pct = (catTotals[c.id] / total * 100);
+          barHtml += `<div class="mc-bar-seg" style="width:${pct}%;background:${c.color}"></div>`;
+        }
+      });
+    }
+
+    let catRowsHtml = '';
+    CATEGORIES.forEach(c=>{
+      if(catTotals[c.id]){
+        catRowsHtml += `
+          <div class="mc-cat-row">
+            <span class="mc-cat-name"><span class="mc-cat-dot" style="background:${c.color}"></span>${c.icon} ${c.name}</span>
+            <span class="mc-cat-amount">¥${catTotals[c.id].toFixed(2)}</span>
+          </div>`;
+      }
+    });
+    if(!catRowsHtml){
+      catRowsHtml = '<div class="mc-cat-row"><span class="mc-cat-no-cost">暂无记录</span></div>';
+    }
+
+    mcHtml += `
+      <div class="month-card">
+        <div class="mc-header">
+          <span class="mc-month">${ty}年${tm+1}月</span>
+          <span class="mc-total">¥${total.toFixed(2)}</span>
+        </div>
+        <div class="mc-bar">${barHtml}</div>
+        <div class="mc-cats">${catRowsHtml}</div>
+      </div>`;
+  }
+  monthCardsEl.innerHTML = mcHtml;
+
+  const qCatTotals = {};
+  quarterEntries.forEach(e=>{
+    qCatTotals[e.cat_id] = (qCatTotals[e.cat_id] || 0) + parseFloat(e.amount);
+  });
+  document.getElementById('qcTitle').textContent = `第${q+1}季度成本明细`;
+  document.getElementById('qcTotal').textContent = '¥' + quarterTotal.toFixed(2);
+
+  let qcItemsHtml = '';
+  CATEGORIES.forEach(c=>{
+    if(qCatTotals[c.id]){
+      qcItemsHtml += `
+        <div class="qc-item">
+          <span>${c.icon} ${c.name}</span>
+          <span style="font-weight:600">¥${qCatTotals[c.id].toFixed(2)}</span>
+        </div>`;
+    }
+  });
+  if(!qcItemsHtml){
+    qcItemsHtml = '<div class="qc-item" style="color:var(--text3)">暂无记录</div>';
+  }
+  document.getElementById('qcItems').innerHTML = qcItemsHtml;
+}
+
+// ===== Settings =====
+function renderSettings(){
+  const statsStart = new Date(2026, 6, 1);
+  const filteredEntries = state.entries.filter(e=>new Date(e.date) >= statsStart);
+  const total = filteredEntries.reduce((s,e)=>s+parseFloat(e.amount), 0);
+  document.getElementById('setTotalCount').textContent = filteredEntries.length + ' 笔';
+  document.getElementById('setTotalAmount').textContent = '¥' + total.toFixed(2);
+
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const monthEntries = state.entries.filter(e=>{
+    const d = new Date(e.date);
+    return d.getFullYear()===y && d.getMonth()===m;
+  });
+  const monthTotal = monthEntries.reduce((s,e)=>s+parseFloat(e.amount), 0);
+  document.getElementById('setMonthCount').textContent = monthEntries.length + ' 笔';
+  document.getElementById('setMonthAmount').textContent = '¥' + monthTotal.toFixed(2);
+}
+
+// ===== Export =====
+function exportData(fmt){
+  const y = state.viewMonth.getFullYear();
+  const m = state.viewMonth.getMonth();
+  const entries = state.entries.filter(e=>{
+    const d = new Date(e.date);
+    return d.getFullYear()===y && d.getMonth()===m;
+  });
+
+  if(entries.length === 0){
+    showToast('本月暂无数据');
+    return;
+  }
+
+  if(fmt === 'json'){
+    const blob = new Blob([JSON.stringify(entries, null, 2)], {type:'application/json'});
+    downloadBlob(blob, `DK邻里少儿中心采购清单_${y}${String(m+1).padStart(2,'0')}.json`);
+  } else {
+    const headers = ['日期','分类','金额','是否计入成本','记录人','支付方式','备注'];
+    const rows = entries.map(e=>[
+      e.date, e.cat_name, e.amount, e.cost?'是':'否', e.person, e.pay, e.note
+    ]);
+    let csv = '\uFEFF' + headers.join(',') + '\n';
+    rows.forEach(r=>{
+      csv += r.map(v=>{
+        const s = String(v || '');
+        return s.includes(',') || s.includes('"') ? '"'+s.replace(/"/g,'""')+'"' : s;
+      }).join(',') + '\n';
+    });
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    downloadBlob(blob, `DK邻里少儿中心采购清单_${y}${String(m+1).padStart(2,'0')}.csv`);
+  }
+  showToast('已导出 ' + entries.length + ' 条');
+}
+
+function exportAllData(){
+  if(state.entries.length === 0){
+    showToast('暂无数据');
+    return;
+  }
+  const blob = new Blob([JSON.stringify({
+    exportDate: new Date().toISOString(),
+    totalCount: state.entries.length,
+    entries: state.entries
+  }, null, 2)], {type:'application/json'});
+  downloadBlob(blob, `DK邻里少儿中心采购清单_全部数据_${formatDate(new Date())}.json`);
+  showToast('已导出全部 ' + state.entries.length + ' 条');
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ===== Modal =====
+function confirmDelete(id){
+  showModal('删除记录', '确定删除这条记录？', async ()=>{
+    await deleteEntry(id);
+  });
+}
+
+function showModal(title, text, onConfirm){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalText').textContent = text;
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('modalConfirmBtn').onclick = ()=>{
+    closeModal();
+    onConfirm();
+  };
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('show');
+}
+
+// ===== Edit =====
+let editingId = null;
+let editingCat = null;
+
+function renderEditCatGrid(selectedId){
+  editingCat = selectedId;
+  const grid = document.getElementById('editCatGrid');
+  grid.innerHTML = CATEGORIES.map(c=>`
+    <div class="em-cat${c.id===selectedId?' selected':''}" data-cat="${c.id}" onclick="selectEditCat(${c.id})">
+      <span class="em-cat-icon">${c.icon}</span>
+      <span>${c.name}</span>
+    </div>
+  `).join('');
+}
+
+function selectEditCat(id){
+  editingCat = id;
+  document.querySelectorAll('#editCatGrid .em-cat').forEach(el=>{
+    el.classList.toggle('selected', parseInt(el.dataset.cat)===id);
+  });
+}
+
+function openEditModal(id){
+  const entry = state.entries.find(e=>e.id === id);
+  if(!entry) return;
+  editingId = id;
+  document.getElementById('editAmount').value = entry.amount;
+  document.getElementById('editNote').value = entry.note || '';
+  document.getElementById('editDate').value = entry.date;
+  document.getElementById('editPay').value = entry.pay || '微信';
+  document.getElementById('editPerson').value = entry.person || 'Kyle';
+  renderEditCatGrid(entry.cat_id);
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEditModal(){
+  document.getElementById('editModal').classList.remove('show');
+  editingId = null;
+  editingCat = null;
+}
+
+async function saveEdit(){
+  if(!editingId) return;
+  const amount = parseFloat(document.getElementById('editAmount').value);
+  if(!amount || amount <= 0){ showToast('金额必须大于 0'); return; }
+  if(editingCat === null){ showToast('请选择分类'); return; }
+
+  const cat = CATEGORIES[editingCat];
+  const updates = {
+    amount: Math.round(amount * 100) / 100,
+    cat_id: editingCat,
+    cat_name: cat.name,
+    cat_icon: cat.icon,
+    cost: cat.cost,
+    note: document.getElementById('editNote').value.trim() || '',
+    date: document.getElementById('editDate').value,
+    pay: document.getElementById('editPay').value,
+    person: document.getElementById('editPerson').value,
+  };
+
+  setSyncStatus('syncing','保存修改...');
+  const { error } = await supabase.from('dk_expenses').update(updates).eq('id', editingId);
+  if(error){ showToast('❌ 修改失败'); setSyncStatus('error','修改失败'); return; }
+
+  closeEditModal();
+  showToast('✅ 已保存');
+  await loadEntries();
+}
+
+// ===== Toast =====
+let toastTimer;
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2000);
+}
+
+// ===== Start =====
+init();
+</script>
+</body>
+</html>
