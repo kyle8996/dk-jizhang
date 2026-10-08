@@ -875,7 +875,9 @@ function renderStats(){
 
   const monthCardsEl = document.getElementById('monthCards');
   let mcHtml = '';
-  for(let i = 2; i >= 0; i--){
+  // 从 2026年7月 起逐月显示到当前月（不再只显示最近3个月）
+  const monthsSinceStart = Math.max(0, (y - 2026) * 12 + (m - 6));
+  for(let i = monthsSinceStart; i >= 0; i--){
     const targetDate = new Date(y, m - i, 1);
     const ty = targetDate.getFullYear();
     const tm = targetDate.getMonth();
