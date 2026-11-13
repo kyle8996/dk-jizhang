@@ -528,6 +528,13 @@ function updatePendingBadge(){
   el.style.display = n ? 'inline-flex' : 'none';
   el.textContent = n + ' 条待同步（点击重试）';
 }
+// 空闲状态统一入口：有待同步记录时绝不显示"已同步"
+function showIdleStatus(){
+  if(opBusy) return;
+  const n = getPending().length;
+  if(n) setSyncStatus('error', n + ' 条待同步（点击重试）');
+  else setSyncStatus('ok', '已同步 ✓');
+}
 
 // 请求超时保护：弱网下不会永久转圈
 function withTimeout(promise, ms){
@@ -551,7 +558,7 @@ async function manualRefresh(){
   renderAll();
   if(ok){
     await flushPending();
-    if(!opBusy) setSyncStatus('ok','已同步 ✓');
+    showIdleStatus();
     showToast('🔄 数据已刷新');
   }else{
     setSyncStatus('error','同步失败，点 ↻ 重试');
@@ -585,7 +592,8 @@ async function loadEntries(){
     if(error) throw error;
     state.entries = data || [];
     saveCache();
-    setSyncStatus('ok', state.entries.length >= 5000 ? '已同步（数据已达上限）' : '已同步 ✓');
+    if(state.entries.length >= 5000) setSyncStatus('ok','已同步（数据已达上限）');
+    else showIdleStatus();
     return true;
   }catch(e){
     console.error('Load error:', e);
@@ -660,14 +668,14 @@ function startAutoHeal(){
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) heal(); });
   setInterval(()=>{
     if(document.hidden || opBusy || flushing) return;
-    loadEntries().then(ok=>{ if(ok && !opBusy){ renderAll(); setSyncStatus('ok','已同步 ✓'); } });
+    loadEntries().then(ok=>{ if(ok){ renderAll(); showIdleStatus(); } });
   }, 60000);
 }
 function heal(){
   setSyncStatus('syncing','重新连接...');
   loadEntries().then(ok=>{
     renderAll();
-    if(ok) flushPending().then(()=>{ if(!opBusy) setSyncStatus('ok','已同步 ✓'); });
+    if(ok) flushPending().then(showIdleStatus);
   });
   resubscribe(true);
 }
@@ -693,7 +701,7 @@ function resubscribe(force){
           setSyncStatus('error','连接断开，正在重连');
           setTimeout(()=>resubscribe(true), 3000);
         }else if(status==='SUBSCRIBED'){
-          if(!opBusy) setSyncStatus('ok','已同步 ✓');
+          showIdleStatus();
         }
       });
   }catch(e){ console.warn('实时订阅不可用，已启用定时轮询兜底', e); }
@@ -839,6 +847,7 @@ async function saveEntry(){
   if(ok){
     setSyncStatus('ok','已同步 ✓');
     showToast('✅ 已保存 ¥' + entry.amount);
+    flushPending();   // 顺带把之前暂存的记录一起补传
   }
   renderAll();
   opBusy = false;
