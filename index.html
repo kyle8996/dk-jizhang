@@ -181,13 +181,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .people-filter{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .people-filter button{padding:5px 12px;border-radius:14px;border:1px solid var(--border);background:#fff;font-size:12px;color:var(--text2);cursor:pointer;font-weight:600}
 .people-filter button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+/* ===== 容错提示 ===== */
+.fatal-banner{display:none;position:sticky;top:0;z-index:100000;background:#FDECEA;color:#B3261E;
+  border-bottom:1px solid #F5C6C2;padding:12px 16px;font-size:13.5px;font-weight:600;
+  text-align:center;line-height:1.6;cursor:pointer}
+.pending-badge{display:none;align-items:center;background:#FFF4E5;color:#B26A00;border:1px solid #FFD899;
+  border-radius:12px;padding:2px 9px;font-size:12px;font-weight:700;cursor:pointer;margin-left:6px}
 </style>
 </head>
 <body>
 
+<div class="fatal-banner" id="fatalBanner">
+  ⚠️ 连接组件加载失败，暂时无法记账。点击这里或下拉刷新页面重试（已填写内容不会丢）
+</div>
+
 <div class="sync-status" id="syncStatus">
   <span class="sync-dot"></span>
-  <span id="syncText">已同步</span>
+  <span id="syncText">连接中…</span>
+  <span class="pending-badge" id="pendingBadge" onclick="manualRefresh()" title="点击立即重试上传">0 条待同步</span>
   <button class="refresh-btn" onclick="manualRefresh()" title="刷新数据">🔄</button>
 </div>
 
@@ -458,12 +469,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 <!-- ===== Toast ===== -->
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase.js"></script>
 <script>
-// ===== Supabase Config =====
+/* CLOUD_CONFIG_START */
 const SUPABASE_URL = 'https://chasxggorljjqqmficnh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoYXN4Z2dvcmxqanFxbWZpY25oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDI1NzIsImV4cCI6MjA5NzA3ODU3Mn0.E0xlNCX_jFn8X9LheAR3jFHokzWSkZlXkBDReqTvL6c';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/* CLOUD_CONFIG_END */
+let db = null;
 
 // ===== Categories =====
 const CATEGORIES = [
@@ -486,24 +498,65 @@ let state = {
 };
 
 // ===== Sync Status =====
+let opBusy = false;      // 有写操作进行中，避免轮询抢状态
+let flushing = false;    // 正在补传待同步队列
+let healTimer = null;
+
 function setSyncStatus(status, text){
   const el = document.getElementById('syncStatus');
   el.classList.remove('syncing','error');
   if(status==='syncing') el.classList.add('syncing');
   if(status==='error') el.classList.add('error');
   document.getElementById('syncText').textContent = text;
+  updatePendingBadge();
+}
+
+// ===== 待同步队列：失败不丢数据 =====
+const PENDING_KEY = 'dk_pending_entries';
+function getPending(){
+  try{ const v = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch(e){ return []; }
+}
+function setPending(list){
+  try{ localStorage.setItem(PENDING_KEY, JSON.stringify(list)); }catch(e){}
+  updatePendingBadge();
+}
+function updatePendingBadge(){
+  const el = document.getElementById('pendingBadge');
+  if(!el) return;
+  const n = getPending().length;
+  el.style.display = n ? 'inline-flex' : 'none';
+  el.textContent = n + ' 条待同步（点击重试）';
+}
+
+// 请求超时保护：弱网下不会永久转圈
+function withTimeout(promise, ms){
+  return new Promise((resolve, reject)=>{
+    let done = false;
+    const t = setTimeout(()=>{ if(!done){ done=true; reject(new Error('请求超时')); } }, ms || 12000);
+    Promise.resolve(promise).then(
+      v=>{ if(!done){ done=true; clearTimeout(t); resolve(v); } },
+      e=>{ if(!done){ done=true; clearTimeout(t); reject(e); } }
+    );
+  });
+}
+
+function renderAll(){
+  renderToday(); renderList(); renderStats(); renderSettings();
 }
 
 async function manualRefresh(){
   setSyncStatus('syncing','刷新中...');
-  await loadEntries();
-  renderToday();
-  renderList();
-  renderStats();
-  renderSettings();
-  setSyncStatus('ok','已刷新 ✓');
-  showToast('🔄 数据已刷新');
-  setTimeout(()=>setSyncStatus('ok','已同步'), 2000);
+  const ok = await loadEntries();
+  renderAll();
+  if(ok){
+    await flushPending();
+    if(!opBusy) setSyncStatus('ok','已同步 ✓');
+    showToast('🔄 数据已刷新');
+  }else{
+    setSyncStatus('error','同步失败，点 ↻ 重试');
+    showToast('⚠️ 同步失败，当前显示本地缓存');
+  }
 }
 
 // ===== Init =====
@@ -511,57 +564,141 @@ async function init(){
   renderCatGrid();
   renderCatLegend();
   setInputDate();
-  await loadEntries();
-  renderToday();
-  renderList();
-  renderStats();
-  renderSettings();
+  updatePendingBadge();
+  const ok = await loadEntries();
+  renderAll();
   subscribeChanges();
+  startAutoHeal();
+  if(ok){
+    flushPending();
+  }else{
+    setSyncStatus('error','同步失败，点 ↻ 重试');
+    showToast('⚠️ 网络异常，显示本地缓存');
+  }
 }
 
 async function loadEntries(){
-  setSyncStatus('syncing','同步中...');
   try{
-    const { data, error } = await db
-      .from('dk_expenses')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(2000);
+    const { data, error } = await withTimeout(
+      db.from('dk_expenses').select('*').order('created_at', { ascending: false }).limit(5000),
+      15000);
     if(error) throw error;
     state.entries = data || [];
-    setSyncStatus('ok','已同步 ✓');
+    saveCache();
+    setSyncStatus('ok', state.entries.length >= 5000 ? '已同步（数据已达上限）' : '已同步 ✓');
+    return true;
   }catch(e){
     console.error('Load error:', e);
     setSyncStatus('error','同步失败');
-    showToast('网络异常，显示本地缓存');
     try{
       const cached = localStorage.getItem('dk_expenses_cache');
-      if(cached) state.entries = JSON.parse(cached);
+      if(cached){ const v = JSON.parse(cached); if(Array.isArray(v) && v.length) state.entries = v; }
     }catch(e2){}
+    return false;
   }
 }
 
 function saveCache(){
   try{
     localStorage.setItem('dk_expenses_cache', JSON.stringify(state.entries));
+    localStorage.setItem('dk_expenses_cache_time', new Date().toISOString());
   }catch(e){}
 }
 
-let realtimeChannel = null;
-function subscribeChanges(){
-  if(realtimeChannel) return;
-  realtimeChannel = db.channel('dk_expenses_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'dk_expenses' }, (payload) => {
-      console.log('Realtime change:', payload);
-      loadEntries().then(()=>{
-        renderToday();
-        renderList();
-        renderStats();
-        renderSettings();
+// 补传队列：先查重（防"超时但已成功"导致重复记账），再写入
+async function flushPending(){
+  if(flushing || !db) return;
+  const list = getPending();
+  if(!list.length) return;
+  flushing = true;
+  setSyncStatus('syncing','补传 ' + list.length + ' 条...');
+  const remain = [];
+  for(let i=0;i<list.length;i++){
+    const e = list[i];
+    const payload = {
+      date:e.date, amount:e.amount, cat_id:e.cat_id, cat_name:e.cat_name,
+      cat_icon:e.cat_icon, cost:e.cost, note:e.note, person:e.person, pay:e.pay
+    };
+    try{
+      const dup = await withTimeout(
+        db.from('dk_expenses').select('id,created_at,cat_id,pay')
+          .eq('date', e.date).eq('amount', e.amount).eq('note', e.note).eq('person', e.person),
+        12000);
+      if(dup.error) throw dup.error;
+      const already = (dup.data || []).some(r=>{
+        const t = new Date(r.created_at).getTime();
+        return Math.abs(t - (e._ts || 0)) < 10*60*1000
+            && String(r.cat_id) === String(e.cat_id)
+            && String(r.pay) === String(e.pay);
       });
-    })
-    .subscribe();
+      if(already){ console.log('云端已存在，跳过重复写入'); continue; }
+      const ins = await withTimeout(db.from('dk_expenses').insert([payload]).select(), 12000);
+      if(ins.error) throw ins.error;
+    }catch(err){
+      console.warn('补传失败，保留在队列：', err);
+      remain.push(e);
+    }
+  }
+  setPending(remain);
+  flushing = false;
+  if(remain.length === 0){
+    setSyncStatus('ok','已同步 ✓');
+    showToast('✅ 待同步记录已全部上传');
+    await loadEntries();
+    renderAll();
+  }else{
+    setSyncStatus('error', remain.length + ' 条待同步');
+  }
 }
+
+// ===== 自动自愈：网络恢复 / 切回前台 / 定时兜底 =====
+function startAutoHeal(){
+  window.addEventListener('online', ()=>{
+    showToast('🌐 网络已恢复，正在补同步');
+    heal();
+  });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) heal(); });
+  setInterval(()=>{
+    if(document.hidden || opBusy || flushing) return;
+    loadEntries().then(ok=>{ if(ok && !opBusy){ renderAll(); setSyncStatus('ok','已同步 ✓'); } });
+  }, 60000);
+}
+function heal(){
+  setSyncStatus('syncing','重新连接...');
+  loadEntries().then(ok=>{
+    renderAll();
+    if(ok) flushPending().then(()=>{ if(!opBusy) setSyncStatus('ok','已同步 ✓'); });
+  });
+  resubscribe(true);
+}
+
+/* REALTIME_START */
+let realtimeChannel = null;
+let realtimeStatus = '';
+function subscribeChanges(){ resubscribe(false); }
+function resubscribe(force){
+  if(!db || typeof db.channel !== 'function') return;   // 本地端无实时订阅能力
+  if(realtimeChannel && !force && (realtimeStatus==='SUBSCRIBED' || realtimeStatus==='JOINING')) return;
+  if(realtimeChannel){ try{ db.removeChannel(realtimeChannel); }catch(e){} realtimeChannel = null; }
+  try{
+    realtimeChannel = db.channel('dk_expenses_changes')
+      .on('postgres_changes', { event:'*', schema:'public', table:'dk_expenses' }, ()=>{
+        clearTimeout(healTimer);
+        healTimer = setTimeout(()=>{ loadEntries().then(renderAll); }, 400);
+      })
+      .subscribe((status)=>{
+        realtimeStatus = status;
+        console.log('Realtime status:', status);
+        if(status==='TIMED_OUT' || status==='CHANNEL_ERROR' || status==='CLOSED'){
+          setSyncStatus('error','连接断开，正在重连');
+          setTimeout(()=>resubscribe(true), 3000);
+        }else if(status==='SUBSCRIBED'){
+          if(!opBusy) setSyncStatus('ok','已同步 ✓');
+        }
+      });
+  }catch(e){ console.warn('实时订阅不可用，已启用定时轮询兜底', e); }
+}
+/* REALTIME_END */
 
 // ===== Page Switch =====
 function switchPage(name){
@@ -656,6 +793,9 @@ function checkSaveReady(){
 async function saveEntry(){
   const amount = parseFloat(document.getElementById('inputAmount').value);
   if(!amount || amount <= 0 || state.selectedCat === null) return;
+  if(opBusy) return;                       // 防止连点造成重复记账
+  opBusy = true;
+  document.getElementById('btnSave').disabled = true;
 
   const cat = CATEGORIES[state.selectedCat];
   const entry = {
@@ -671,59 +811,59 @@ async function saveEntry(){
   };
 
   setSyncStatus('syncing','保存中...');
-  const btn = document.getElementById('btnSave');
-  btn.disabled = true;
-
+  let ok = false;
   try{
-    const { data, error } = await db
-      .from('dk_expenses')
-      .insert([entry])
-      .select();
+    if(!db) throw new Error('数据库未连接');
+    const { data, error } = await withTimeout(
+      db.from('dk_expenses').insert([entry]).select(), 12000);
     if(error) throw error;
-
-    if(data && data[0]){
-      state.entries.unshift(data[0]);
-      saveCache();
-    }
-
-    document.getElementById('inputAmount').value = '';
-    document.getElementById('inputNote').value = '';
-    state.selectedCat = null;
-    document.querySelectorAll('.cat-item').forEach(i=>i.classList.remove('selected'));
-    setInputDate();
-    setSyncStatus('ok','已同步 ✓');
-    showToast('✅ 已保存 ¥' + entry.amount);
-    renderToday();
-    renderList();
-    renderStats();
+    if(data && data[0]){ state.entries.unshift(data[0]); saveCache(); }
+    ok = true;
   }catch(e){
     console.error('Save error:', e);
-    setSyncStatus('error','保存失败');
-    showToast('保存失败：' + e.message);
-  }finally{
-    checkSaveReady();
+    // 关键：失败不丢数据，先暂存，联网后自动补传
+    const list = getPending();
+    list.push(Object.assign({ _ts: Date.now() }, entry));
+    setPending(list);
+    setSyncStatus('error', list.length + ' 条待同步');
+    showToast('⏳ 已暂存，联网后自动上传');
   }
+
+  // 无论成功或暂存，都清空表单（记录已安全落地，不会被下一笔覆盖）
+  document.getElementById('inputAmount').value = '';
+  document.getElementById('inputNote').value = '';
+  state.selectedCat = null;
+  document.querySelectorAll('.cat-item').forEach(i=>i.classList.remove('selected'));
+  setInputDate();
+
+  if(ok){
+    setSyncStatus('ok','已同步 ✓');
+    showToast('✅ 已保存 ¥' + entry.amount);
+  }
+  renderAll();
+  opBusy = false;
+  checkSaveReady();
 }
 
 async function deleteEntry(id){
+  if(opBusy) return;
+  opBusy = true;
   setSyncStatus('syncing','删除中...');
   try{
-    const { error } = await db
-      .from('dk_expenses')
-      .delete()
-      .eq('id', id);
+    const { error } = await withTimeout(
+      db.from('dk_expenses').delete().eq('id', id), 12000);
     if(error) throw error;
     state.entries = state.entries.filter(e=>e.id !== id);
     saveCache();
     setSyncStatus('ok','已同步 ✓');
     showToast('已删除');
-    renderToday();
-    renderList();
-    renderStats();
+    renderAll();
   }catch(e){
     console.error('Delete error:', e);
     setSyncStatus('error','删除失败');
-    showToast('删除失败：' + e.message);
+    showToast('删除失败：' + (e.message || '网络异常') + '，请重试');
+  }finally{
+    opBusy = false;
   }
 }
 
@@ -1096,8 +1236,9 @@ function closeEditModal(){
   editingCat = null;
 }
 
+let editBusy = false;
 async function saveEdit(){
-  if(!editingId) return;
+  if(!editingId || editBusy) return;
   const amount = parseFloat(document.getElementById('editAmount').value);
   if(!amount || amount <= 0){ showToast('金额必须大于 0'); return; }
   if(editingCat === null){ showToast('请选择分类'); return; }
@@ -1115,17 +1256,23 @@ async function saveEdit(){
     person: document.getElementById('editPerson').value,
   };
 
+  editBusy = true;
   setSyncStatus('syncing','保存修改...');
-  const { error } = await db.from('dk_expenses').update(updates).eq('id', editingId);
-  if(error){ showToast('❌ 修改失败'); setSyncStatus('error','修改失败'); return; }
-
-  closeEditModal();
-  showToast('✅ 已保存');
-  await loadEntries();
-  renderToday();
-  renderList();
-  renderStats();
-  renderSettings();
+  try{
+    const { error } = await withTimeout(
+      db.from('dk_expenses').update(updates).eq('id', editingId), 12000);
+    if(error) throw error;
+    closeEditModal();
+    showToast('✅ 已保存');
+    await loadEntries();
+    renderAll();
+  }catch(e){
+    console.error('Edit error:', e);
+    setSyncStatus('error','修改失败');
+    showToast('❌ 修改失败：' + (e.message || '网络异常') + '，请重试');
+  }finally{
+    editBusy = false;
+  }
 }
 
 // ===== Toast =====
@@ -1138,8 +1285,51 @@ function showToast(msg){
   toastTimer = setTimeout(()=>el.classList.remove('show'), 2000);
 }
 
-// ===== Start =====
-init();
+/* BOOT_START */
+const DEP_CDNS = [
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.0/dist/umd/supabase.js',
+  'https://unpkg.com/@supabase/supabase-js@2.57.0/dist/umd/supabase.js'
+];
+function loadDepFromCDN(i){
+  return new Promise((resolve, reject)=>{
+    if(i >= DEP_CDNS.length){ reject(new Error('依赖加载失败')); return; }
+    const s = document.createElement('script');
+    s.src = DEP_CDNS[i];
+    s.onload = ()=>{
+      if(typeof supabase !== 'undefined' && supabase.createClient) resolve();
+      else loadDepFromCDN(i+1).then(resolve, reject);
+    };
+    s.onerror = ()=> loadDepFromCDN(i+1).then(resolve, reject);
+    document.head.appendChild(s);
+  });
+}
+function showFatalDepError(){
+  setSyncStatus('error','连接失败，点 ↻ 重试');
+  const b = document.getElementById('fatalBanner');
+  if(b) b.style.display = 'block';
+}
+function bootApp(){
+  if(typeof supabase === 'undefined' || !supabase.createClient){
+    loadDepFromCDN(0).then(bootApp).catch(showFatalDepError);
+    return;
+  }
+  try{
+    db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession:false, autoRefreshToken:false },
+      realtime: { params: { eventsPerSecond: 2 } }
+    });
+    const b = document.getElementById('fatalBanner');
+    if(b) b.style.display = 'none';
+    init();
+  }catch(e){
+    console.error('Init error:', e);
+    showFatalDepError();
+  }
+}
+const fatalEl = document.getElementById('fatalBanner');
+if(fatalEl) fatalEl.addEventListener('click', ()=>location.reload());
+bootApp();
+/* BOOT_END */
 </script>
 </body>
 </html>
